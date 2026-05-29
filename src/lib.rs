@@ -62,6 +62,7 @@ pub struct Fixture {
     pub(crate) files: Vec<FileFixture>,
     pub(crate) dirs: Vec<PathBuf>,
     pub(crate) env: BTreeMap<String, String>,
+    pub(crate) commands: Vec<CommandFixture>,
 }
 
 impl Fixture {
@@ -83,12 +84,25 @@ impl Fixture {
     pub fn env(&mut self, key: impl Into<String>, value: impl Into<String>) {
         self.env.insert(key.into(), value.into());
     }
+
+    pub fn command(&mut self, program: impl Into<String>, args: &[&str]) {
+        self.commands.push(CommandFixture {
+            program: program.into(),
+            args: args.iter().map(|arg| (*arg).to_owned()).collect(),
+        });
+    }
 }
 
 #[derive(Clone, Debug)]
 pub(crate) struct FileFixture {
     pub(crate) path: PathBuf,
     pub(crate) content: Vec<u8>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct CommandFixture {
+    pub(crate) program: String,
+    pub(crate) args: Vec<String>,
 }
 
 pub(crate) fn fixture_for_page(help_test: &HelpTest, command_path: &[String]) -> Option<Fixture> {

@@ -31,6 +31,8 @@ pub(crate) fn parse_examples(
             .expect("rsplit always returns at least one segment")
             .trim();
 
+        let tool_segment = strip_shell_comment(tool_segment);
+
         match split_shell_words(tool_segment) {
             Ok(words) => {
                 if words.starts_with(command_words) {
@@ -49,6 +51,45 @@ pub(crate) fn parse_examples(
     } else {
         Err(failures)
     }
+}
+
+fn strip_shell_comment(input: &str) -> &str {
+    let mut chars = input.char_indices().peekable();
+    let mut quote = None;
+
+    while let Some((idx, ch)) = chars.next() {
+        match quote {
+            Some('\'') => {
+                if ch == '\'' {
+                    quote = None;
+                }
+            }
+            Some('"') => match ch {
+                '"' => quote = None,
+                '\\' => {
+                    let _ = chars.next();
+                }
+                _ => {}
+            },
+            None => match ch {
+                '\'' | '"' => quote = Some(ch),
+                '#' => {
+                    let starts_comment =
+                        idx == 0 || input[..idx].chars().last().is_some_and(char::is_whitespace);
+                    if starts_comment {
+                        return input[..idx].trim_end();
+                    }
+                }
+                '\\' => {
+                    let _ = chars.next();
+                }
+                _ => {}
+            },
+            Some(other) => unreachable!("unexpected quote state: {other}"),
+        }
+    }
+
+    input
 }
 
 pub(crate) fn find_short_flag_violations(
@@ -176,5 +217,27 @@ mod tests {
         .unwrap();
 
         assert_eq!(examples[0].args, ["--json"]);
+    }
+
+    #[test]
+    fn strips_unquoted_inline_shell_comments() {
+        let examples = parse_examples(
+            "Examples:\n  $ cargo ratchet --init  # initialize from current state\n",
+            &["cargo".to_owned(), "ratchet".to_owned()],
+        )
+        .unwrap();
+
+        assert_eq!(examples[0].args, ["--init"]);
+    }
+
+    #[test]
+    fn preserves_hash_inside_quotes() {
+        let examples = parse_examples(
+            "Examples:\n  $ cargo ratchet --message '# still an arg'\n",
+            &["cargo".to_owned(), "ratchet".to_owned()],
+        )
+        .unwrap();
+
+        assert_eq!(examples[0].args, ["--message", "# still an arg"]);
     }
 }

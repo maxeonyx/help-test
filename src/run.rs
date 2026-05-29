@@ -188,6 +188,24 @@ fn materialize_fixture(root: &Path, fixture: &Fixture) -> Result<(), String> {
             .map_err(|error| format!("failed to write {}: {error}", file.path.display()))?;
     }
 
+    for command in &fixture.commands {
+        let status = Command::new(&command.program)
+            .args(&command.args)
+            .current_dir(root)
+            .envs(&fixture.env)
+            .status()
+            .map_err(|error| {
+                format!("failed to run fixture command {}: {error}", command.program)
+            })?;
+
+        if !status.success() {
+            return Err(format!(
+                "fixture command {} {:?} failed with status {}",
+                command.program, command.args, status
+            ));
+        }
+    }
+
     Ok(())
 }
 
