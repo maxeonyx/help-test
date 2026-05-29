@@ -1,0 +1,9 @@
+[package]
+name = "help-test"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Black-box help example testing for workspace CLIs"
+
+[dependencies]
+tempfile = "3"
