@@ -7,11 +7,18 @@ use std::path::{Path, PathBuf};
 
 type PageSetup = Box<dyn Fn(&mut Fixture)>;
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct ExampleKey {
+    command_path: Vec<String>,
+    args: Vec<String>,
+}
+
 pub struct HelpTest {
     binary_name: String,
     display_command: Vec<String>,
     allow_short_flags: BTreeSet<String>,
     pages: BTreeMap<Vec<String>, PageSetup>,
+    examples: BTreeMap<ExampleKey, PageSetup>,
 }
 
 impl HelpTest {
@@ -21,6 +28,7 @@ impl HelpTest {
             display_command: vec![binary_name.to_owned()],
             allow_short_flags: BTreeSet::new(),
             pages: BTreeMap::new(),
+            examples: BTreeMap::new(),
         }
     }
 
@@ -47,6 +55,30 @@ impl HelpTest {
 
         let previous = self.pages.insert(key.clone(), Box::new(setup));
         assert!(previous.is_none(), "duplicate page declaration: {key:?}");
+        self
+    }
+
+    pub fn example(
+        mut self,
+        command_path: &[&str],
+        args: &[&str],
+        setup: impl Fn(&mut Fixture) + 'static,
+    ) -> Self {
+        let key = ExampleKey {
+            command_path: command_path
+                .iter()
+                .map(|segment| (*segment).to_owned())
+                .collect::<Vec<_>>(),
+            args: args.iter().map(|arg| (*arg).to_owned()).collect::<Vec<_>>(),
+        };
+
+        let previous = self.examples.insert(key.clone(), Box::new(setup));
+        assert!(
+            previous.is_none(),
+            "duplicate example declaration: {:?} {:?}",
+            key.command_path,
+            key.args
+        );
         self
     }
 
@@ -91,6 +123,16 @@ impl Fixture {
             args: args.iter().map(|arg| (*arg).to_owned()).collect(),
         });
     }
+
+    fn extend(&mut self, other: Fixture) {
+        if let Some(stdin) = other.stdin {
+            self.stdin = Some(stdin);
+        }
+        self.files.extend(other.files);
+        self.dirs.extend(other.dirs);
+        self.env.extend(other.env);
+        self.commands.extend(other.commands);
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -111,6 +153,69 @@ pub(crate) fn fixture_for_page(help_test: &HelpTest, command_path: &[String]) ->
         setup(&mut fixture);
         fixture
     })
+}
+
+pub(crate) fn fixture_for_example(
+    help_test: &HelpTest,
+    command_path: &[String],
+    args: &[String],
+) -> Option<Fixture> {
+    let mut fixture = fixture_for_page(help_test, command_path)?;
+
+    if let Some(setup) = help_test.examples.get(&ExampleKey {
+        command_path: command_path.to_vec(),
+        args: args.to_vec(),
+    }) {
+        let mut example_fixture = Fixture::default();
+        setup(&mut example_fixture);
+        fixture.extend(example_fixture);
+    }
+
+    Some(fixture)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{fixture_for_example, fixture_for_page, HelpTest};
+
+    #[test]
+    fn example_fixture_extends_page_fixture() {
+        let help_test = HelpTest::new("demo")
+            .page(&["run"], |fixture| {
+                fixture.env("PAGE_ONLY", "1");
+                fixture.env("OVERRIDE_ME", "page");
+                fixture.command("setup-page", &["alpha"]);
+            })
+            .example(&["run"], &["--flag"], |fixture| {
+                fixture.env("OVERRIDE_ME", "example");
+                fixture.command("setup-example", &["beta"]);
+            });
+
+        let fixture = fixture_for_example(&help_test, &["run".to_owned()], &["--flag".to_owned()])
+            .expect("fixture should exist");
+
+        assert_eq!(fixture.env.get("PAGE_ONLY").map(String::as_str), Some("1"));
+        assert_eq!(
+            fixture.env.get("OVERRIDE_ME").map(String::as_str),
+            Some("example")
+        );
+        assert_eq!(fixture.commands.len(), 2);
+        assert_eq!(fixture.commands[0].program, "setup-page");
+        assert_eq!(fixture.commands[1].program, "setup-example");
+    }
+
+    #[test]
+    fn page_fixture_is_still_available_without_example_override() {
+        let help_test = HelpTest::new("demo").page(&[], |fixture| {
+            fixture.env("HOME", "/tmp/demo");
+        });
+
+        let page_fixture = fixture_for_page(&help_test, &[]).expect("page fixture should exist");
+        let example_fixture = fixture_for_example(&help_test, &[], &[])
+            .expect("example lookup should reuse page fixture");
+
+        assert_eq!(page_fixture.env, example_fixture.env);
+    }
 }
 
 fn resolve_binary_path(binary_name: &str) -> PathBuf {

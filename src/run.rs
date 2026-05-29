@@ -1,6 +1,6 @@
 use crate::discover::discover_subcommands;
 use crate::parse::{find_short_flag_violations, parse_examples};
-use crate::{fixture_for_page, Fixture, HelpTest};
+use crate::{fixture_for_example, fixture_for_page, Fixture, HelpTest};
 use std::collections::BTreeSet;
 use std::fs;
 use std::io::Write;
@@ -75,7 +75,8 @@ fn visit_page(
                     ));
                 }
 
-                if let Err(error) = run_example(binary_path, &command_path, &fixture, &example.args)
+                if let Err(error) =
+                    run_example(binary_path, help_test, &command_path, &example.args)
                 {
                     failures.push(format!(
                         "page {}: {}: {error}",
@@ -110,11 +111,17 @@ fn run_help_command(
 
 fn run_example(
     binary_path: &Path,
+    help_test: &HelpTest,
     command_path: &[String],
-    fixture: &Fixture,
     args: &[String],
 ) -> Result<(), String> {
-    run_command(binary_path, command_path, args, fixture).map(|_| ())
+    let fixture = fixture_for_example(help_test, command_path, args).ok_or_else(|| {
+        format!(
+            "missing .page() declaration for {}",
+            describe_page(command_path)
+        )
+    })?;
+    run_command(binary_path, command_path, args, &fixture).map(|_| ())
 }
 
 fn run_command(
