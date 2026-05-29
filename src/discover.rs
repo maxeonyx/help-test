@@ -29,7 +29,7 @@ pub(crate) fn discover_subcommands(help_output: &str) -> Vec<String> {
             continue;
         };
 
-        if name.starts_with('-') {
+        if name.starts_with('-') || name == "help" {
             continue;
         }
 
@@ -54,5 +54,14 @@ mod tests {
         );
 
         assert_eq!(commands, ["run", "test"]);
+    }
+
+    #[test]
+    fn ignores_auto_generated_help_subcommand() {
+        let commands = discover_subcommands(
+            "Usage: demo\n\nCommands:\n  run   Execute work\n  help  Print this message or the help of the given subcommand(s)\n\nOptions:\n  -h, --help\n",
+        );
+
+        assert_eq!(commands, ["run"]);
     }
 }
