@@ -1,0 +1,6 @@
+{
+  "$schema": "https://tdd-ratchet.maxeonyx.com/schema/test-status.v1.json",
+  "tests": {
+    "help-test::ratchet_gatekeeper$tdd_ratchet_gatekeeper": "passing"
+  }
+}
