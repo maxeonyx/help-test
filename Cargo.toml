@@ -3,7 +3,12 @@ name = "help-test"
 version = "0.1.0"
 edition = "2021"
 publish = false
-description = "Black-box help example testing for workspace CLIs"
+description = "Black-box testing of CLI help pages and examples"
+license = "MIT"
+repository = "https://github.com/maxeonyx/help-test"
+readme = "README.md"
 
 [dependencies]
 tempfile = "3"
+
+[workspace]

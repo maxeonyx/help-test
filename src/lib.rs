@@ -174,50 +174,6 @@ pub(crate) fn fixture_for_example(
     Some(fixture)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{fixture_for_example, fixture_for_page, HelpTest};
-
-    #[test]
-    fn example_fixture_extends_page_fixture() {
-        let help_test = HelpTest::new("demo")
-            .page(&["run"], |fixture| {
-                fixture.env("PAGE_ONLY", "1");
-                fixture.env("OVERRIDE_ME", "page");
-                fixture.command("setup-page", &["alpha"]);
-            })
-            .example(&["run"], &["--flag"], |fixture| {
-                fixture.env("OVERRIDE_ME", "example");
-                fixture.command("setup-example", &["beta"]);
-            });
-
-        let fixture = fixture_for_example(&help_test, &["run".to_owned()], &["--flag".to_owned()])
-            .expect("fixture should exist");
-
-        assert_eq!(fixture.env.get("PAGE_ONLY").map(String::as_str), Some("1"));
-        assert_eq!(
-            fixture.env.get("OVERRIDE_ME").map(String::as_str),
-            Some("example")
-        );
-        assert_eq!(fixture.commands.len(), 2);
-        assert_eq!(fixture.commands[0].program, "setup-page");
-        assert_eq!(fixture.commands[1].program, "setup-example");
-    }
-
-    #[test]
-    fn page_fixture_is_still_available_without_example_override() {
-        let help_test = HelpTest::new("demo").page(&[], |fixture| {
-            fixture.env("HOME", "/tmp/demo");
-        });
-
-        let page_fixture = fixture_for_page(&help_test, &[]).expect("page fixture should exist");
-        let example_fixture = fixture_for_example(&help_test, &[], &[])
-            .expect("example lookup should reuse page fixture");
-
-        assert_eq!(page_fixture.env, example_fixture.env);
-    }
-}
-
 fn resolve_binary_path(binary_name: &str) -> PathBuf {
     let env_key = format!("CARGO_BIN_EXE_{binary_name}");
     if let Some(path) = std::env::var_os(&env_key) {
@@ -267,4 +223,48 @@ fn resolve_binary_path(binary_name: &str) -> PathBuf {
         "built {binary_name}, but could not find target/debug binary from {}",
         manifest_dir.display()
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{fixture_for_example, fixture_for_page, HelpTest};
+
+    #[test]
+    fn example_fixture_extends_page_fixture() {
+        let help_test = HelpTest::new("demo")
+            .page(&["run"], |fixture| {
+                fixture.env("PAGE_ONLY", "1");
+                fixture.env("OVERRIDE_ME", "page");
+                fixture.command("setup-page", &["alpha"]);
+            })
+            .example(&["run"], &["--flag"], |fixture| {
+                fixture.env("OVERRIDE_ME", "example");
+                fixture.command("setup-example", &["beta"]);
+            });
+
+        let fixture = fixture_for_example(&help_test, &["run".to_owned()], &["--flag".to_owned()])
+            .expect("fixture should exist");
+
+        assert_eq!(fixture.env.get("PAGE_ONLY").map(String::as_str), Some("1"));
+        assert_eq!(
+            fixture.env.get("OVERRIDE_ME").map(String::as_str),
+            Some("example")
+        );
+        assert_eq!(fixture.commands.len(), 2);
+        assert_eq!(fixture.commands[0].program, "setup-page");
+        assert_eq!(fixture.commands[1].program, "setup-example");
+    }
+
+    #[test]
+    fn page_fixture_is_still_available_without_example_override() {
+        let help_test = HelpTest::new("demo").page(&[], |fixture| {
+            fixture.env("HOME", "/tmp/demo");
+        });
+
+        let page_fixture = fixture_for_page(&help_test, &[]).expect("page fixture should exist");
+        let example_fixture = fixture_for_example(&help_test, &[], &[])
+            .expect("example lookup should reuse page fixture");
+
+        assert_eq!(page_fixture.env, example_fixture.env);
+    }
 }

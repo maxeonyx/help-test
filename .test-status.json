@@ -1,0 +1,16 @@
+{
+  "$schema": "https://tdd-ratchet.maxeonyx.com/schema/test-status.v1.json",
+  "baseline": "a285ba0c838760e5b2a40ce824fb7a7d08e345b2",
+  "tests": {
+    "help-test::help_test$discover::tests::ignores_auto_generated_help_subcommand": "passing",
+    "help-test::help_test$discover::tests::reads_commands_section": "passing",
+    "help-test::help_test$parse::tests::extracts_examples_for_display_command_after_pipe": "passing",
+    "help-test::help_test$parse::tests::preserves_hash_inside_quotes": "passing",
+    "help-test::help_test$parse::tests::rejects_unallowlisted_short_flags_until_double_dash": "passing",
+    "help-test::help_test$parse::tests::strips_subcommand_prefix_for_subcommand_pages": "passing",
+    "help-test::help_test$parse::tests::strips_unquoted_inline_shell_comments": "passing",
+    "help-test::help_test$tests::example_fixture_extends_page_fixture": "passing",
+    "help-test::help_test$tests::page_fixture_is_still_available_without_example_override": "passing",
+    "help-test::ratchet_gatekeeper$tdd_ratchet_gatekeeper": "passing"
+  }
+}
